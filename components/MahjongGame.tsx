@@ -2,9 +2,15 @@ import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable, Dimensions, Alert } from 'react-native';
 import Animated, { useAnimatedStyle, withSpring } from 'react-native-reanimated';
 
-const BOARD_WIDTH = Dimensions.get('window').width;
-const TILE_WIDTH = 40;
-const TILE_HEIGHT = 50;
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const COLUMNS = 4;
+const PADDING = 20;
+// Calculate tile size to fit screen width with padding
+const TABLE_WIDTH = SCREEN_WIDTH - (PADDING * 2);
+const TILE_WIDTH = Math.floor(TABLE_WIDTH / COLUMNS) - 4; // -4 for gaps
+const TILE_HEIGHT = Math.floor(TILE_WIDTH * 1.3); // 4:3 aspect ratio roughly
+const START_X = PADDING;
+const START_Y = 50;
 
 // Simple emoji set for tiles
 const TILE_TYPES = ['🀄', '🃏', '🎴', '🎭', '🎨', '🎪', '🎫', '🎬', '🎧', '🎤', '🎼', '🎹', '🥁', '🎷', '🎺', '🎸', '🎻', '🎲', '🎳', '🎮', '👾', '🎰'];
@@ -53,8 +59,8 @@ export default function MahjongGame() {
                 newTiles.push({
                     id: `l0-${row}-${col}`,
                     type: availableTypes[typeIndex++],
-                    x: col * (TILE_WIDTH + 2) + 50, // Center offset approx
-                    y: row * (TILE_HEIGHT + 2) + 50,
+                    x: START_X + col * (TILE_WIDTH + 4),
+                    y: START_Y + row * (TILE_HEIGHT / 2) + row * 10, // Staggered slightly
                     z: 0,
                     isVisible: true
                 });
@@ -67,8 +73,8 @@ export default function MahjongGame() {
                 newTiles.push({
                     id: `l1-${row}-${col}`,
                     type: availableTypes[typeIndex++],
-                    x: (col + 1) * (TILE_WIDTH + 2) + 50, // Offset to sit between layer 0 cols
-                    y: (row + 1) * (TILE_HEIGHT + 2) + 40, // Offset to sit between layer 0 rows
+                    x: START_X + (col + 1) * (TILE_WIDTH + 4), // Center horizontally
+                    y: START_Y + (row + 1) * (TILE_HEIGHT / 2) + (row + 1) * 10 - 10, // Offset vertically
                     z: 1,
                     isVisible: true
                 });
@@ -89,8 +95,8 @@ export default function MahjongGame() {
         const coveringTile = tiles.find(t =>
             t.isVisible &&
             t.z === tile.z + 1 &&
-            Math.abs(t.x - tile.x) < TILE_WIDTH &&
-            Math.abs(t.y - tile.y) < TILE_HEIGHT
+            Math.abs(t.x - tile.x) < TILE_WIDTH / 2 && // More lenient overlap check
+            Math.abs(t.y - tile.y) < TILE_HEIGHT / 2
         );
         if (coveringTile) return false;
 
@@ -99,9 +105,9 @@ export default function MahjongGame() {
             t.isVisible &&
             t.z === tile.z &&
             t.id !== tile.id &&
-            Math.abs(t.y - tile.y) < TILE_HEIGHT / 2 && // Roughly same row
-            t.x < tile.x && // Is to the left
-            tile.x - t.x < TILE_WIDTH + 5 // Is touching or overlapping left
+            Math.abs(t.y - tile.y) < TILE_HEIGHT / 2 &&
+            t.x < tile.x &&
+            tile.x - t.x < TILE_WIDTH + 10 // Must be very close to block
         );
 
         // Check RIGHT neighbor
@@ -110,8 +116,8 @@ export default function MahjongGame() {
             t.z === tile.z &&
             t.id !== tile.id &&
             Math.abs(t.y - tile.y) < TILE_HEIGHT / 2 &&
-            t.x > tile.x && // Is to the right
-            t.x - tile.x < TILE_WIDTH + 5
+            t.x > tile.x &&
+            t.x - tile.x < TILE_WIDTH + 10
         );
 
         // Must have at least one side open
@@ -239,7 +245,7 @@ const styles = StyleSheet.create({
         flex: 1,
         width: '100%',
         position: 'relative',
-        height: 400, // Fixed height for board
+        height: SCREEN_HEIGHT * 0.7, // Take up 70% of height
     },
     tile: {
         position: 'absolute',
@@ -265,6 +271,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     tileText: {
-        fontSize: 24,
+        fontSize: TILE_WIDTH * 0.6, // Scale font with tile width
     }
 });
