@@ -407,8 +407,8 @@ export default function GameScreen() {
         <Text style={styles.menuText}>Mahjong</Text>
       </Pressable>
       <Pressable onPress={() => setActiveTab('pills')} style={[styles.menuItem, activeTab === 'pills' && styles.activeMenuItem]}>
-        <Text style={styles.menuIcon}>💊</Text>
-        <Text style={styles.menuText}>Pills</Text>
+        <Text style={styles.menuIcon}>🦴</Text>
+        <Text style={styles.menuText}>Bones</Text>
       </Pressable>
     </View>
   );

@@ -5,7 +5,7 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 // Make blocks smaller by increasing grid size
 const GRID_COLS = 10;
 const GRID_ROWS = 20;
-const BLOCK_SIZE = Math.floor((SCREEN_WIDTH - 40) / GRID_COLS);
+const BLOCK_SIZE = Math.floor((SCREEN_WIDTH - 120) / GRID_COLS); // Adjusted for side panel
 
 // Colors for the pills/viruses
 const COLORS = {
@@ -14,9 +14,12 @@ const COLORS = {
     BLUE: '#0074D9',
     YELLOW: '#FFDC00',
     GREEN: '#2ECC40',
+    BROWN: '#8B4513',
+    BLACK: '#000000',
+    SKIN: '#FFCCAA'
 };
 
-type BlockType = 'EMPTY' | 'RED' | 'BLUE' | 'YELLOW' | 'GREEN';
+type BlockType = 'EMPTY' | 'RED' | 'BLUE' | 'YELLOW' | 'GREEN' | 'BROWN' | 'BLACK' | 'SKIN';
 
 type Block = {
     type: BlockType;
@@ -37,14 +40,40 @@ type Pill = {
     orientation: 'horizontal' | 'vertical';
 };
 
+// Pixel Art Jack Russell (Similar size, white/brown spots)
+const JACK_ART = [
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 2, 0], // Head: 3=White, 2=Black
+    [0, 0, 0, 0, 0, 0, 0, 1, 3, 2, 3, 0], // Ear: 1=Brown
+    [0, 3, 3, 1, 3, 3, 3, 3, 3, 3, 3, 0], // Body: White with Brown Spot
+    [0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0, 0], // Body
+    [0, 3, 0, 0, 3, 0, 0, 3, 0, 0, 0, 0], // Legs
+    [0, 3, 0, 0, 3, 0, 0, 3, 0, 0, 0, 0], // Feet
+];
+
 const GAME_SPEED = 600; // Slower constant speed
+
+// Pixel Art Wiener Dog (12x8 approx)
+const DOG_ART = [
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 0], // Head: 1=Brown, 2=Black (Nose)
+    [0, 0, 0, 0, 0, 0, 0, 1, 3, 2, 1, 0], // Eye: 3=White/Skin, 2=Black
+    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0], // Body
+    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0], // Body
+    [0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0], // Legs
+    [0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0], // Feet
+];
 
 export default function PillsGame() {
     const [grid, setGrid] = useState<Block[][]>([]);
     const [activePill, setActivePill] = useState<Pill | null>(null);
+    const [nextPillColors, setNextPillColors] = useState<{ c1: BlockType, c2: BlockType } | null>(null);
     const [score, setScore] = useState(0);
     const [level, setLevel] = useState(1);
     const [gameOver, setGameOver] = useState(false);
+    const [speed, setSpeed] = useState(GAME_SPEED);
 
     const gameLoopRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -56,10 +85,10 @@ export default function PillsGame() {
     useEffect(() => {
         if (activePill && !gameOver) {
             stopGameLoop();
-            gameLoopRef.current = setInterval(gameStep, GAME_SPEED);
+            gameLoopRef.current = setInterval(gameStep, speed);
         }
         return () => stopGameLoop();
-    }, [activePill, gameOver]);
+    }, [activePill, gameOver, speed]);
 
     const createEmptyGrid = () => {
         const newGrid: Block[][] = [];
@@ -73,6 +102,11 @@ export default function PillsGame() {
         return newGrid;
     };
 
+    const getRandomColor = () => {
+        const types: BlockType[] = ['RED', 'BLUE', 'YELLOW'];
+        return types[Math.floor(Math.random() * types.length)];
+    };
+
     const startNewGame = () => {
         const newGrid = createEmptyGrid();
 
@@ -83,9 +117,8 @@ export default function PillsGame() {
             const r = Math.floor(Math.random() * (GRID_ROWS - 8)) + 8; // Bottom rows
             const c = Math.floor(Math.random() * GRID_COLS);
             if (newGrid[r][c].type === 'EMPTY') {
-                const types: BlockType[] = ['RED', 'BLUE', 'YELLOW'];
                 newGrid[r][c] = {
-                    type: types[Math.floor(Math.random() * types.length)],
+                    type: getRandomColor(),
                     isVirus: true
                 };
                 placed++;
@@ -96,16 +129,21 @@ export default function PillsGame() {
         setScore(0);
         setGameOver(false);
 
-        // Initial spawn manually
-        const types: BlockType[] = ['RED', 'BLUE', 'YELLOW'];
-        const color1 = types[Math.floor(Math.random() * types.length)];
-        const color2 = types[Math.floor(Math.random() * types.length)];
+        // Generate First Pill manually
+        const c1 = getRandomColor();
+        const c2 = getRandomColor();
         setActivePill({
             pos1: { row: 0, col: 3 },
             pos2: { row: 0, col: 4 },
-            color1,
-            color2,
+            color1: c1,
+            color2: c2,
             orientation: 'horizontal'
+        });
+
+        // Generate Next Pill
+        setNextPillColors({
+            c1: getRandomColor(),
+            c2: getRandomColor()
         });
     };
 
@@ -119,15 +157,19 @@ export default function PillsGame() {
     const spawnPill = () => {
         if (!grid || grid.length === 0 || gameOver) return;
 
-        const types: BlockType[] = ['RED', 'BLUE', 'YELLOW'];
-        const color1 = types[Math.floor(Math.random() * types.length)];
-        const color2 = types[Math.floor(Math.random() * types.length)];
+        if (!nextPillColors) {
+            // Fallback for safety
+            setNextPillColors({ c1: getRandomColor(), c2: getRandomColor() });
+            return;
+        }
+
+        const { c1, c2 } = nextPillColors;
 
         const newPill: Pill = {
             pos1: { row: 0, col: 3 },
             pos2: { row: 0, col: 4 },
-            color1,
-            color2,
+            color1: c1,
+            color2: c2,
             orientation: 'horizontal'
         };
 
@@ -139,6 +181,13 @@ export default function PillsGame() {
         }
 
         setActivePill(newPill);
+        setSpeed(GAME_SPEED); // Reset speed in case it was fast
+
+        // Prepare next
+        setNextPillColors({
+            c1: getRandomColor(),
+            c2: getRandomColor()
+        });
     };
 
     const gameStep = () => {
@@ -306,57 +355,111 @@ export default function PillsGame() {
                     orientation: activePill.orientation === 'horizontal' ? 'vertical' : 'horizontal'
                 });
             }
+        },
+        fastDrop: () => {
+            setSpeed(50);
+        },
+        stopFastDrop: () => {
+            setSpeed(GAME_SPEED);
         }
     };
 
     return (
         <View style={styles.container}>
-            <View style={styles.stats}>
-                <Text style={styles.text}>Score: {score}</Text>
-                <Text style={styles.text}>Lvl: {level}</Text>
-            </View>
+            <View style={styles.contentRow}>
+                {/* Game Board */}
+                <View style={styles.gridContainer}>
+                    <View style={styles.grid}>
+                        {grid.map((row, rIndex) => (
+                            <View key={rIndex} style={styles.row}>
+                                {row.map((block, cIndex) => {
+                                    let displayBlock = block;
+                                    if (activePill && !gameOver) {
+                                        if (activePill.pos1.row === rIndex && activePill.pos1.col === cIndex)
+                                            displayBlock = { type: activePill.color1, isVirus: false };
+                                        if (activePill.pos2.row === rIndex && activePill.pos2.col === cIndex)
+                                            displayBlock = { type: activePill.color2, isVirus: false };
+                                    }
 
-            <View style={styles.gridContainer}>
-                <View style={styles.grid}>
-                    {grid.map((row, rIndex) => (
-                        <View key={rIndex} style={styles.row}>
-                            {row.map((block, cIndex) => {
-                                let displayBlock = block;
-                                if (activePill && !gameOver) {
-                                    if (activePill.pos1.row === rIndex && activePill.pos1.col === cIndex)
-                                        displayBlock = { type: activePill.color1, isVirus: false };
-                                    if (activePill.pos2.row === rIndex && activePill.pos2.col === cIndex)
-                                        displayBlock = { type: activePill.color2, isVirus: false };
-                                }
+                                    return (
+                                        <View
+                                            key={cIndex}
+                                            style={[
+                                                styles.cell,
+                                                displayBlock.type !== 'EMPTY' && {
+                                                    backgroundColor: COLORS[displayBlock.type],
+                                                    borderWidth: 1,
+                                                    borderColor: 'rgba(255,255,255,0.3)',
+                                                    borderRadius: displayBlock.isVirus ? BLOCK_SIZE / 2 : 6,
+                                                },
+                                            ]}
+                                        >
+                                            {displayBlock.isVirus && <Text style={{ fontSize: BLOCK_SIZE * 0.6 }}>🦟</Text>}
+                                        </View>
+                                    );
+                                })}
+                            </View>
+                        ))}
+                    </View>
+                </View>
 
-                                return (
-                                    <View
-                                        key={cIndex}
-                                        style={[
-                                            styles.cell,
-                                            displayBlock.type !== 'EMPTY' && {
-                                                backgroundColor: COLORS[displayBlock.type],
-                                                borderWidth: 1,
-                                                borderColor: 'rgba(255,255,255,0.3)',
-                                                borderRadius: displayBlock.isVirus ? BLOCK_SIZE / 2 : 6, // Rounded corners
-                                            },
-                                            displayBlock.type === 'EMPTY' && {
-                                                borderWidth: 0,
-                                            }
-                                        ]}
-                                    >
-                                        {displayBlock.isVirus && <Text style={{ fontSize: BLOCK_SIZE * 0.6 }}>🦠</Text>}
-                                    </View>
-                                );
-                            })}
+                {/* Sidebar (Preview & Dogs) */}
+                <View style={styles.sidebar}>
+                    <View style={styles.statsPanel}>
+                        <Text style={styles.text}>Score</Text>
+                        <Text style={styles.scoreVal}>{score}</Text>
+
+                        <Text style={[styles.text, { marginTop: 10 }]}>Next</Text>
+                        <View style={styles.previewBox}>
+                            {nextPillColors && (
+                                <View style={styles.previewPill}>
+                                    <View style={[styles.previewCell, { backgroundColor: COLORS[nextPillColors.c1] }]} />
+                                    <View style={[styles.previewCell, { backgroundColor: COLORS[nextPillColors.c2] }]} />
+                                </View>
+                            )}
                         </View>
-                    ))}
+                    </View>
+
+                    {/* Wiener Dog */}
+                    <View style={styles.dogContainer}>
+                        {DOG_ART.map((row, r) => (
+                            <View key={`d1-${r}`} style={{ flexDirection: 'row' }}>
+                                {row.map((pix, c) => (
+                                    <View key={c} style={{
+                                        width: 4, height: 4,
+                                        backgroundColor: pix === 0 ? 'transparent' : (pix === 1 ? COLORS.BROWN : (pix === 2 ? COLORS.BLACK : COLORS.SKIN))
+                                    }} />
+                                ))}
+                            </View>
+                        ))}
+                    </View>
+
+                    {/* Jack Russell */}
+                    <View style={[styles.dogContainer, { marginTop: 15 }]}>
+                        {JACK_ART.map((row, r) => (
+                            <View key={`d2-${r}`} style={{ flexDirection: 'row' }}>
+                                {row.map((pix, c) => (
+                                    <View key={c} style={{
+                                        width: 4, height: 4,
+                                        backgroundColor: pix === 0 ? 'transparent' : (pix === 1 ? COLORS.BROWN : (pix === 2 ? COLORS.BLACK : (pix === 3 ? '#E0E0E0' : 'transparent')))
+                                    }} />
+                                ))}
+                            </View>
+                        ))}
+                    </View>
                 </View>
             </View>
 
             <View style={styles.controls}>
                 <TouchableOpacity style={styles.btn} onPress={controls.left}><Text style={styles.btnText}>⬅️</Text></TouchableOpacity>
                 <TouchableOpacity style={[styles.btn, styles.btnBig]} onPress={controls.rotate}><Text style={styles.btnText}>🔄</Text></TouchableOpacity>
+                <TouchableOpacity
+                    style={[styles.btn, styles.btnBig, { backgroundColor: '#FF851B' }]}
+                    onPressIn={controls.fastDrop}
+                    onPressOut={controls.stopFastDrop}
+                >
+                    <Text style={styles.btnText}>⚡</Text>
+                </TouchableOpacity>
                 <TouchableOpacity style={styles.btn} onPress={controls.right}><Text style={styles.btnText}>➡️</Text></TouchableOpacity>
             </View>
         </View>
@@ -367,18 +470,28 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         alignItems: 'center',
-        justifyContent: 'center',
+        justifyContent: 'flex-start', // Align to top
         width: '100%',
+        paddingTop: 10, // Small top padding
     },
-    stats: {
+    contentRow: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
-        width: '90%',
+        alignItems: 'flex-start', // Align grid and sidebar to top
+        gap: 10,
+        height: SCREEN_HEIGHT * 0.65, // Limit height
+    },
+    statsPanel: {
+        alignItems: 'center',
         marginBottom: 10,
     },
     text: {
         color: '#fff',
-        fontSize: 20,
+        fontSize: 14, // Smaller text
+        fontWeight: 'bold',
+    },
+    scoreVal: {
+        color: '#FFDC00',
+        fontSize: 18,
         fontWeight: 'bold',
     },
     gridContainer: {
@@ -386,9 +499,9 @@ const styles = StyleSheet.create({
         borderColor: '#fff',
         borderRadius: 10,
         overflow: 'hidden',
+        backgroundColor: 'rgba(0,0,0,0.5)',
     },
     grid: {
-        backgroundColor: 'rgba(0,0,0,0.5)',
     },
     row: {
         flexDirection: 'row',
@@ -399,28 +512,59 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
+    sidebar: {
+        alignItems: 'center',
+        justifyContent: 'flex-start',
+        paddingTop: 20,
+    },
+    previewBox: {
+        width: BLOCK_SIZE * 3,
+        height: BLOCK_SIZE * 2,
+        borderWidth: 2,
+        borderColor: '#fff',
+        borderRadius: 5,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: 5,
+        backgroundColor: 'rgba(0,0,0,0.3)',
+    },
+    previewPill: {
+        flexDirection: 'row',
+    },
+    previewCell: {
+        width: BLOCK_SIZE,
+        height: BLOCK_SIZE,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.5)',
+        borderRadius: 6,
+    },
+    dogContainer: {
+        marginTop: 10,
+        transform: [{ scale: 2 }],
+    },
     controls: {
         flexDirection: 'row',
-        marginTop: 20,
-        gap: 20,
+        marginTop: 10, // Reduce margin
+        gap: 15,
         alignItems: 'center',
+        paddingBottom: 20, // Ensure padding at bottom
     },
     btn: {
         backgroundColor: 'rgba(255,255,255,0.8)',
-        width: 60,
-        height: 60,
-        borderRadius: 30,
+        width: 50, // Slightly smaller buttons
+        height: 50,
+        borderRadius: 25,
         alignItems: 'center',
         justifyContent: 'center',
         elevation: 5,
     },
     btnBig: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
+        width: 60,
+        height: 60,
+        borderRadius: 30,
         backgroundColor: '#FFD700',
     },
     btnText: {
-        fontSize: 24,
+        fontSize: 20,
     }
 });
