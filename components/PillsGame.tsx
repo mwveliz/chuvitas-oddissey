@@ -40,30 +40,32 @@ type Pill = {
     orientation: 'horizontal' | 'vertical';
 };
 
-// Pixel Art Jack Russell (Similar size, white/brown spots)
+// Pixel Art Jack Russell (Leia) - Higher Definition
 const JACK_ART = [
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 2, 0], // Head: 3=White, 2=Black
-    [0, 0, 0, 0, 0, 0, 0, 1, 3, 2, 3, 0], // Ear: 1=Brown
-    [0, 3, 3, 1, 3, 3, 3, 3, 3, 3, 3, 0], // Body: White with Brown Spot
-    [0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0, 0], // Body
-    [0, 3, 0, 0, 3, 0, 0, 3, 0, 0, 0, 0], // Legs
-    [0, 3, 0, 0, 3, 0, 0, 3, 0, 0, 0, 0], // Feet
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 0], // Ear Start
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 3, 3, 3, 0], // Brown Ear
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 3, 2, 3, 0], // Face (2=Eye/Nose)
+    [0, 0, 3, 3, 3, 1, 1, 3, 3, 3, 3, 3, 3, 3, 3, 0], // Body with Brown Spot
+    [0, 3, 3, 3, 3, 1, 1, 3, 3, 3, 3, 3, 3, 3, 2, 0], // Body (Nose at end?) No, head is right.
+    [0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0, 0], // Body
+    [0, 3, 0, 0, 3, 0, 0, 0, 0, 3, 0, 0, 3, 0, 0, 0], // Legs
+    [0, 3, 0, 0, 3, 0, 0, 0, 0, 3, 0, 0, 3, 0, 0, 0], // Feet
 ];
 
 const GAME_SPEED = 600; // Slower constant speed
 
-// Pixel Art Wiener Dog (12x8 approx)
+// Pixel Art Wiener Dog (Domy) - Higher Definition
 const DOG_ART = [
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 0], // Head: 1=Brown, 2=Black (Nose)
-    [0, 0, 0, 0, 0, 0, 0, 1, 3, 2, 1, 0], // Eye: 3=White/Skin, 2=Black
-    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0], // Body
-    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0], // Body
-    [0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0], // Legs
-    [0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0], // Feet
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0], // Head Top
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0], // Head
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 3, 2, 1, 2], // Eye/Nose (2=Nose tip)
+    [0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0], // Long Body
+    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0], // Body
+    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0], // Body
+    [0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0], // Legs (Short)
+    [0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0], // Feet
 ];
 
 export default function PillsGame() {
@@ -110,7 +112,7 @@ export default function PillsGame() {
     const startNewGame = () => {
         const newGrid = createEmptyGrid();
 
-        // Spawn Viruses based on level
+        // Spawn Fleas (formerly Viruses)
         const virusCount = (level * 4) + 4;
         let placed = 0;
         while (placed < virusCount) {
@@ -392,9 +394,12 @@ export default function PillsGame() {
                                                     borderColor: 'rgba(255,255,255,0.3)',
                                                     borderRadius: displayBlock.isVirus ? BLOCK_SIZE / 2 : 6,
                                                 },
+                                                displayBlock.type === 'EMPTY' && {
+                                                    borderWidth: 0,
+                                                }
                                             ]}
                                         >
-                                            {displayBlock.isVirus && <Text style={{ fontSize: BLOCK_SIZE * 0.6 }}>🦟</Text>}
+                                            {displayBlock.isVirus && <Text style={{ fontSize: BLOCK_SIZE * 0.6 }}>🍫</Text>}
                                         </View>
                                     );
                                 })}
@@ -420,32 +425,38 @@ export default function PillsGame() {
                         </View>
                     </View>
 
-                    {/* Wiener Dog */}
-                    <View style={styles.dogContainer}>
-                        {DOG_ART.map((row, r) => (
-                            <View key={`d1-${r}`} style={{ flexDirection: 'row' }}>
-                                {row.map((pix, c) => (
-                                    <View key={c} style={{
-                                        width: 4, height: 4,
-                                        backgroundColor: pix === 0 ? 'transparent' : (pix === 1 ? COLORS.BROWN : (pix === 2 ? COLORS.BLACK : COLORS.SKIN))
-                                    }} />
-                                ))}
-                            </View>
-                        ))}
+                    {/* Wiener Dog (DOMY) */}
+                    <View style={styles.dogWrapper}>
+                        <Text style={styles.dogName}>DOMY</Text>
+                        <View style={styles.dogContainer}>
+                            {DOG_ART.map((row, r) => (
+                                <View key={`d1-${r}`} style={{ flexDirection: 'row' }}>
+                                    {row.map((pix, c) => (
+                                        <View key={c} style={{
+                                            width: 3, height: 3,
+                                            backgroundColor: pix === 0 ? 'transparent' : (pix === 1 ? COLORS.BROWN : (pix === 2 ? COLORS.BLACK : COLORS.SKIN))
+                                        }} />
+                                    ))}
+                                </View>
+                            ))}
+                        </View>
                     </View>
 
-                    {/* Jack Russell */}
-                    <View style={[styles.dogContainer, { marginTop: 15 }]}>
-                        {JACK_ART.map((row, r) => (
-                            <View key={`d2-${r}`} style={{ flexDirection: 'row' }}>
-                                {row.map((pix, c) => (
-                                    <View key={c} style={{
-                                        width: 4, height: 4,
-                                        backgroundColor: pix === 0 ? 'transparent' : (pix === 1 ? COLORS.BROWN : (pix === 2 ? COLORS.BLACK : (pix === 3 ? '#E0E0E0' : 'transparent')))
-                                    }} />
-                                ))}
-                            </View>
-                        ))}
+                    {/* Jack Russell (LEIA) */}
+                    <View style={[styles.dogWrapper, { marginTop: 20 }]}>
+                        <Text style={styles.dogName}>LEIA</Text>
+                        <View style={styles.dogContainer}>
+                            {JACK_ART.map((row, r) => (
+                                <View key={`d2-${r}`} style={{ flexDirection: 'row' }}>
+                                    {row.map((pix, c) => (
+                                        <View key={c} style={{
+                                            width: 3, height: 3,
+                                            backgroundColor: pix === 0 ? 'transparent' : (pix === 1 ? COLORS.BROWN : (pix === 2 ? COLORS.BLACK : (pix === 3 ? '#E0E0E0' : 'transparent')))
+                                        }} />
+                                    ))}
+                                </View>
+                            ))}
+                        </View>
                     </View>
                 </View>
             </View>
@@ -463,6 +474,7 @@ export default function PillsGame() {
                 <TouchableOpacity style={styles.btn} onPress={controls.right}><Text style={styles.btnText}>➡️</Text></TouchableOpacity>
             </View>
         </View>
+
     );
 }
 
@@ -538,8 +550,17 @@ const styles = StyleSheet.create({
         borderColor: 'rgba(255,255,255,0.5)',
         borderRadius: 6,
     },
+    dogWrapper: {
+        alignItems: 'center',
+    },
+    dogName: {
+        color: '#fff',
+        fontSize: 12,
+        fontWeight: 'bold',
+        marginBottom: 5,
+        textAlign: 'center',
+    },
     dogContainer: {
-        marginTop: 10,
         transform: [{ scale: 2 }],
     },
     controls: {
