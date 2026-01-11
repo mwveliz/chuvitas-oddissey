@@ -94,7 +94,18 @@ export default function PillsGame() {
         setGrid(newGrid);
         setScore(0);
         setGameOver(false);
-        spawnPill();
+
+        // Initial spawn manually to avoid race condition with state update
+        const types: BlockType[] = ['RED', 'BLUE', 'YELLOW'];
+        const color1 = types[Math.floor(Math.random() * types.length)];
+        const color2 = types[Math.floor(Math.random() * types.length)];
+        setActivePill({
+            pos1: { row: 0, col: 3 },
+            pos2: { row: 0, col: 4 },
+            color1,
+            color2,
+            orientation: 'horizontal'
+        });
     };
 
     const stopGameLoop = () => {
@@ -104,6 +115,8 @@ export default function PillsGame() {
     };
 
     const spawnPill = () => {
+        if (!grid || grid.length === 0) return;
+
         const types: BlockType[] = ['RED', 'BLUE', 'YELLOW'];
         const color1 = types[Math.floor(Math.random() * types.length)];
         const color2 = types[Math.floor(Math.random() * types.length)];
