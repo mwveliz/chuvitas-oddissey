@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Dimensions, Modal, TextInput } from 'react-native';
-import Animated, { 
-  useAnimatedStyle, 
+import Animated, {
+  useAnimatedStyle,
   withSpring,
   withSequence,
   withTiming,
@@ -32,7 +32,10 @@ type LeaderboardEntry = {
   date: string;
 };
 
+import MahjongGame from '@/components/MahjongGame';
+
 export default function GameScreen() {
+  const [activeTab, setActiveTab] = useState<'match3' | 'mahjong'>('match3');
   const [board, setBoard] = useState<Board>([]);
   const [score, setScore] = useState(0);
   const [difficulty, setDifficulty] = useState(1);
@@ -114,39 +117,39 @@ export default function GameScreen() {
     const newBoard = [...board];
     let matchFound = false;
     let matchLength = 0;
-    
+
     // Check horizontal matches
     for (let row = 0; row < BOARD_SIZE; row++) {
       for (let col = 0; col < BOARD_SIZE - 2; col++) {
         let currentType = newBoard[row][col].type;
         let matchCount = 1;
-        
-        while (col + matchCount < BOARD_SIZE && 
-               newBoard[row][col + matchCount].type === currentType) {
+
+        while (col + matchCount < BOARD_SIZE &&
+          newBoard[row][col + matchCount].type === currentType) {
           matchCount++;
         }
-        
+
         if (matchCount >= 3) {
           matchFound = true;
           matchLength = matchCount;
           const positions = [];
-          
+
           for (let i = 0; i < matchCount; i++) {
             positions.push({ row, col: col + i });
           }
-          
+
           triggerExplosion(positions);
           setScore(prev => prev + (matchCount * 100));
-          
+
           const specialPiece = createSpecialPiece(matchCount);
           newBoard[row][col] = specialPiece;
-          
+
           for (let i = 1; i < matchCount; i++) {
             newBoard[row][col + i] = {
               type: GAME_PIECES[Math.floor(Math.random() * GAME_PIECES.length)]
             };
           }
-          
+
           col += matchCount - 1;
         }
       }
@@ -157,33 +160,33 @@ export default function GameScreen() {
       for (let row = 0; row < BOARD_SIZE - 2; row++) {
         let currentType = newBoard[row][col].type;
         let matchCount = 1;
-        
-        while (row + matchCount < BOARD_SIZE && 
-               newBoard[row + matchCount][col].type === currentType) {
+
+        while (row + matchCount < BOARD_SIZE &&
+          newBoard[row + matchCount][col].type === currentType) {
           matchCount++;
         }
-        
+
         if (matchCount >= 3) {
           matchFound = true;
           matchLength = matchCount;
           const positions = [];
-          
+
           for (let i = 0; i < matchCount; i++) {
             positions.push({ row: row + i, col });
           }
-          
+
           triggerExplosion(positions);
           setScore(prev => prev + (matchCount * 100));
-          
+
           const specialPiece = createSpecialPiece(matchCount);
           newBoard[row][col] = specialPiece;
-          
+
           for (let i = 1; i < matchCount; i++) {
             newBoard[row + i][col] = {
               type: GAME_PIECES[Math.floor(Math.random() * GAME_PIECES.length)]
             };
           }
-          
+
           row += matchCount - 1;
         }
       }
@@ -201,7 +204,7 @@ export default function GameScreen() {
       return;
     }
 
-    const isAdjacent = 
+    const isAdjacent =
       (Math.abs(selectedPiece.row - row) === 1 && selectedPiece.col === col) ||
       (Math.abs(selectedPiece.col - col) === 1 && selectedPiece.row === row);
 
@@ -210,10 +213,10 @@ export default function GameScreen() {
       const temp = newBoard[selectedPiece.row][selectedPiece.col];
       newBoard[selectedPiece.row][selectedPiece.col] = newBoard[row][col];
       newBoard[row][col] = temp;
-      
+
       setBoard(newBoard);
       setSelectedPiece(null);
-      
+
       setTimeout(() => checkMatches(), 300);
     } else {
       setSelectedPiece({ row, col });
@@ -232,10 +235,12 @@ export default function GameScreen() {
         withTiming(0, { duration: 400 })
       ),
       transform: [
-        { scale: withSequence(
-          withTiming(1.5, { duration: 200 }),
-          withTiming(0, { duration: 300 })
-        )}
+        {
+          scale: withSequence(
+            withTiming(1.5, { duration: 200 }),
+            withTiming(0, { duration: 300 })
+          )
+        }
       ]
     }));
 
@@ -246,7 +251,7 @@ export default function GameScreen() {
     );
   };
 
-  const GamePiece = ({ piece, row, col, isSelected }: { 
+  const GamePiece = ({ piece, row, col, isSelected }: {
     piece: GamePiece;
     row: number;
     col: number;
@@ -254,7 +259,7 @@ export default function GameScreen() {
   }) => {
     const animatedStyle = useAnimatedStyle(() => ({
       transform: [
-        { 
+        {
           scale: withSequence(
             withSpring(isSelected ? 1.2 : 1, {
               damping: 10,
@@ -281,9 +286,9 @@ export default function GameScreen() {
 
     return (
       <Pressable onPress={() => handlePiecePress(row, col)}>
-        <Animated.Text 
+        <Animated.Text
           style={[
-            styles.piece, 
+            styles.piece,
             animatedStyle,
             piece.isSpecial && styles.specialPiece
           ]}
@@ -294,22 +299,7 @@ export default function GameScreen() {
     );
   };
 
-  const BottomMenu = () => (
-    <View style={styles.bottomMenu}>
-      <Pressable onPress={initializeBoard} style={styles.menuItem}>
-        <Text style={styles.menuIcon}>🎮</Text>
-        <Text style={styles.menuText}>New Game</Text>
-      </Pressable>
-      <Pressable onPress={() => {}} style={styles.menuItem}>
-        <Text style={styles.menuIcon}>🀄</Text>
-        <Text style={styles.menuText}>Mahjong</Text>
-      </Pressable>
-      <Pressable onPress={loadLeaderboard} style={styles.menuItem}>
-        <Text style={styles.menuIcon}>🏆</Text>
-        <Text style={styles.menuText}>Leaderboard</Text>
-      </Pressable>
-    </View>
-  );
+
 
   const LeaderboardModal = () => (
     <Modal
@@ -367,13 +357,14 @@ export default function GameScreen() {
     </Modal>
   );
 
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Chuvita's Odyssey</Text>
-      <View style={styles.statsContainer}>
-        <Text style={styles.score}>Score: {score}</Text>
-        <Text style={styles.difficulty}>Level: {difficulty}</Text>
-      </View>
+  /* Existing Logic Refactored for Tab View */
+  const renderGame = () => {
+    if (activeTab === 'mahjong') {
+      return <MahjongGame />;
+    }
+
+    // Default Match-3 Game
+    return (
       <View style={styles.board}>
         {board.map((row, rowIndex) => (
           <View key={rowIndex} style={styles.row}>
@@ -384,7 +375,7 @@ export default function GameScreen() {
                 row={rowIndex}
                 col={colIndex}
                 isSelected={
-                  selectedPiece?.row === rowIndex && 
+                  selectedPiece?.row === rowIndex &&
                   selectedPiece?.col === colIndex
                 }
               />
@@ -395,6 +386,44 @@ export default function GameScreen() {
           <Explosion key={`explosion-${index}`} row={pos.row} col={pos.col} />
         ))}
       </View>
+    );
+  };
+
+  const BottomMenu = () => (
+    <View style={styles.bottomMenu}>
+      <Pressable onPress={() => {
+        setActiveTab('match3');
+        initializeBoard();
+      }} style={[styles.menuItem, activeTab === 'match3' && styles.activeMenuItem]}>
+        <Text style={styles.menuIcon}>🎮</Text>
+        <Text style={styles.menuText}>New Game</Text>
+      </Pressable>
+      <Pressable onPress={() => setActiveTab('mahjong')} style={[styles.menuItem, activeTab === 'mahjong' && styles.activeMenuItem]}>
+        <Text style={styles.menuIcon}>🀄</Text>
+        <Text style={styles.menuText}>Mahjong</Text>
+      </Pressable>
+      <Pressable onPress={loadLeaderboard} style={styles.menuItem}>
+        <Text style={styles.menuIcon}>🏆</Text>
+        <Text style={styles.menuText}>Leaderboard</Text>
+      </Pressable>
+    </View>
+  );
+
+  /* ... Helper Modals ... */
+  // (LeaderboardModal and NameInputModal remain unchanged)
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Chuvita's Odyssey</Text>
+      {activeTab === 'match3' && (
+        <View style={styles.statsContainer}>
+          <Text style={styles.score}>Score: {score}</Text>
+          <Text style={styles.difficulty}>Level: {difficulty}</Text>
+        </View>
+      )}
+
+      {renderGame()}
+
       <BottomMenu />
       <LeaderboardModal />
       <NameInputModal />
@@ -414,6 +443,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#fff',
     marginBottom: 20,
+    marginTop: 40,
   },
   statsContainer: {
     flexDirection: 'row',
@@ -470,6 +500,12 @@ const styles = StyleSheet.create({
   },
   menuItem: {
     alignItems: 'center',
+    padding: 5,
+    borderRadius: 10,
+    minWidth: 80,
+  },
+  activeMenuItem: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
   },
   menuIcon: {
     fontSize: 24,
@@ -479,6 +515,8 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 12,
   },
+  /* ... Modal Styles ... */
+  // (Modal styles remain unchanged)
   modalContainer: {
     flex: 1,
     justifyContent: 'center',
