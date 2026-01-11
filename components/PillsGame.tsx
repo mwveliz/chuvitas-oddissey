@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, Pressable, Dimensions, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, Alert, TouchableOpacity } from 'react-native';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const GRID_COLS = 8;
-const GRID_ROWS = 16;
+// Make blocks smaller by increasing grid size
+const GRID_COLS = 10;
+const GRID_ROWS = 20;
 const BLOCK_SIZE = Math.floor((SCREEN_WIDTH - 40) / GRID_COLS);
 
 // Colors for the pills/viruses
@@ -36,7 +37,7 @@ type Pill = {
     orientation: 'horizontal' | 'vertical';
 };
 
-const INITIAL_SPEED = 800;
+const GAME_SPEED = 600; // Slower constant speed
 
 export default function PillsGame() {
     const [grid, setGrid] = useState<Block[][]>([]);
@@ -44,7 +45,6 @@ export default function PillsGame() {
     const [score, setScore] = useState(0);
     const [level, setLevel] = useState(1);
     const [gameOver, setGameOver] = useState(false);
-    const [speed, setSpeed] = useState(INITIAL_SPEED);
 
     const gameLoopRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -56,9 +56,10 @@ export default function PillsGame() {
     useEffect(() => {
         if (activePill && !gameOver) {
             stopGameLoop();
-            gameLoopRef.current = setInterval(gameStep, speed);
+            gameLoopRef.current = setInterval(gameStep, GAME_SPEED);
         }
-    }, [activePill, speed, gameOver]);
+        return () => stopGameLoop();
+    }, [activePill, gameOver]);
 
     const createEmptyGrid = () => {
         const newGrid: Block[][] = [];
@@ -79,7 +80,7 @@ export default function PillsGame() {
         const virusCount = (level * 4) + 4;
         let placed = 0;
         while (placed < virusCount) {
-            const r = Math.floor(Math.random() * (GRID_ROWS - 6)) + 6; // Bottom 10 rows
+            const r = Math.floor(Math.random() * (GRID_ROWS - 8)) + 8; // Bottom rows
             const c = Math.floor(Math.random() * GRID_COLS);
             if (newGrid[r][c].type === 'EMPTY') {
                 const types: BlockType[] = ['RED', 'BLUE', 'YELLOW'];
@@ -95,7 +96,7 @@ export default function PillsGame() {
         setScore(0);
         setGameOver(false);
 
-        // Initial spawn manually to avoid race condition with state update
+        // Initial spawn manually
         const types: BlockType[] = ['RED', 'BLUE', 'YELLOW'];
         const color1 = types[Math.floor(Math.random() * types.length)];
         const color2 = types[Math.floor(Math.random() * types.length)];
@@ -111,11 +112,12 @@ export default function PillsGame() {
     const stopGameLoop = () => {
         if (gameLoopRef.current) {
             clearInterval(gameLoopRef.current);
+            gameLoopRef.current = null;
         }
     };
 
     const spawnPill = () => {
-        if (!grid || grid.length === 0) return;
+        if (!grid || grid.length === 0 || gameOver) return;
 
         const types: BlockType[] = ['RED', 'BLUE', 'YELLOW'];
         const color1 = types[Math.floor(Math.random() * types.length)];
@@ -140,7 +142,7 @@ export default function PillsGame() {
     };
 
     const gameStep = () => {
-        if (!activePill) return;
+        if (!activePill || gameOver) return;
 
         if (canMove(activePill, 1, 0)) {
             setActivePill({
@@ -159,7 +161,7 @@ export default function PillsGame() {
 
         if (!isValidPos(next1) || !isValidPos(next2)) return false;
 
-        // Check grid collision (ignore self)
+        // Check collision
         if (grid[next1.row][next1.col].type !== 'EMPTY') return false;
         if (grid[next2.row][next2.col].type !== 'EMPTY') return false;
 
@@ -180,12 +182,12 @@ export default function PillsGame() {
         setGrid(newGrid);
         setActivePill(null);
 
-        checkMatches(newGrid);
+        // Delay check matches to separate turn phases
+        setTimeout(() => checkMatches(newGrid), 100);
     };
 
     const checkMatches = (currentGrid: Block[][]) => {
-        // Find matches (4 in a row, Dr. Mario style, horizontal or vertical)
-        // For simplicity, we'll start with 3+ like user asked "three inline"
+        if (gameOver) return;
 
         const toClear: Position[] = [];
 
@@ -230,14 +232,16 @@ export default function PillsGame() {
         }
 
         if (toClear.length > 0) {
+            // Remove duplicates
+            const uniqueClear = toClear.filter((v, i, a) => a.findIndex(t => (t.row === v.row && t.col === v.col)) === i);
+
             const newGrid = [...currentGrid.map(row => [...row])];
-            toClear.forEach(p => {
+            uniqueClear.forEach(p => {
                 newGrid[p.row][p.col] = { type: 'EMPTY', isVirus: false };
             });
             setGrid(newGrid);
-            setScore(prev => prev + toClear.length * 100);
+            setScore(prev => prev + uniqueClear.length * 100);
 
-            // Apply gravity after clear
             setTimeout(() => applyGravity(newGrid), 300);
         } else {
             spawnPill();
@@ -245,14 +249,14 @@ export default function PillsGame() {
     };
 
     const applyGravity = (currentGrid: Block[][]) => {
-        // Simple isolated block gravity
+        if (gameOver) return;
+
         const newGrid = [...currentGrid.map(row => [...row])];
         let moved = false;
 
         for (let c = 0; c < GRID_COLS; c++) {
             for (let r = GRID_ROWS - 2; r >= 0; r--) {
                 if (newGrid[r][c].type !== 'EMPTY' && !newGrid[r][c].isVirus && newGrid[r + 1][c].type === 'EMPTY') {
-                    // Move down
                     newGrid[r + 1][c] = newGrid[r][c];
                     newGrid[r][c] = { type: 'EMPTY', isVirus: false };
                     moved = true;
@@ -262,16 +266,15 @@ export default function PillsGame() {
 
         if (moved) {
             setGrid(newGrid);
-            setTimeout(() => applyGravity(newGrid), 100); // Cascading gravity
+            setTimeout(() => applyGravity(newGrid), 100);
         } else {
-            // Re-check matches after gravity settles
             checkMatches(newGrid);
         }
     };
 
     const controls = {
         left: () => {
-            if (activePill && canMove(activePill, 0, -1)) {
+            if (activePill && !gameOver && canMove(activePill, 0, -1)) {
                 setActivePill({
                     ...activePill,
                     pos1: { ...activePill.pos1, col: activePill.pos1.col - 1 },
@@ -280,7 +283,7 @@ export default function PillsGame() {
             }
         },
         right: () => {
-            if (activePill && canMove(activePill, 0, 1)) {
+            if (activePill && !gameOver && canMove(activePill, 0, 1)) {
                 setActivePill({
                     ...activePill,
                     pos1: { ...activePill.pos1, col: activePill.pos1.col + 1 },
@@ -288,19 +291,14 @@ export default function PillsGame() {
                 });
             }
         },
-        down: () => {
-            setSpeed(50); // Fast drop
-        },
         rotate: () => {
-            if (!activePill) return;
-            // Rotate around pos1
-            // Horizontal (1 left, 2 right) -> Vertical (1 bottom, 2 top) ??
-            // For simplicity, toggle horizontal/vertical around pos1
+            if (!activePill || gameOver) return;
 
             const newPos2 = activePill.orientation === 'horizontal'
-                ? { row: activePill.pos1.row - 1, col: activePill.pos1.col } // Go vertical (up)
-                : { row: activePill.pos1.row, col: activePill.pos1.col + 1 }; // Go horizontal (right)
+                ? { row: activePill.pos1.row - 1, col: activePill.pos1.col }
+                : { row: activePill.pos1.row, col: activePill.pos1.col + 1 };
 
+            // Check if rotation is valid
             if (isValidPos(newPos2) && grid[newPos2.row][newPos2.col].type === 'EMPTY') {
                 setActivePill({
                     ...activePill,
@@ -318,44 +316,47 @@ export default function PillsGame() {
                 <Text style={styles.text}>Lvl: {level}</Text>
             </View>
 
-            <View style={styles.grid}>
-                {grid.map((row, rIndex) => (
-                    <View key={rIndex} style={styles.row}>
-                        {row.map((block, cIndex) => {
-                            // Check if part of active pill
-                            let displayBlock = block;
-                            if (activePill) {
-                                if (activePill.pos1.row === rIndex && activePill.pos1.col === cIndex)
-                                    displayBlock = { type: activePill.color1, isVirus: false };
-                                if (activePill.pos2.row === rIndex && activePill.pos2.col === cIndex)
-                                    displayBlock = { type: activePill.color2, isVirus: false };
-                            }
+            <View style={styles.gridContainer}>
+                <View style={styles.grid}>
+                    {grid.map((row, rIndex) => (
+                        <View key={rIndex} style={styles.row}>
+                            {row.map((block, cIndex) => {
+                                let displayBlock = block;
+                                if (activePill && !gameOver) {
+                                    if (activePill.pos1.row === rIndex && activePill.pos1.col === cIndex)
+                                        displayBlock = { type: activePill.color1, isVirus: false };
+                                    if (activePill.pos2.row === rIndex && activePill.pos2.col === cIndex)
+                                        displayBlock = { type: activePill.color2, isVirus: false };
+                                }
 
-                            return (
-                                <View
-                                    key={cIndex}
-                                    style={[
-                                        styles.cell,
-                                        displayBlock.type !== 'EMPTY' && {
-                                            backgroundColor: COLORS[displayBlock.type],
-                                            borderWidth: 1,
-                                            borderColor: 'rgba(0,0,0,0.2)'
-                                        },
-                                        displayBlock.isVirus && styles.virus
-                                    ]}
-                                >
-                                    {displayBlock.isVirus && <Text style={{ fontSize: BLOCK_SIZE * 0.6 }}>🦠</Text>}
-                                </View>
-                            );
-                        })}
-                    </View>
-                ))}
+                                return (
+                                    <View
+                                        key={cIndex}
+                                        style={[
+                                            styles.cell,
+                                            displayBlock.type !== 'EMPTY' && {
+                                                backgroundColor: COLORS[displayBlock.type],
+                                                borderWidth: 1,
+                                                borderColor: 'rgba(255,255,255,0.3)',
+                                                borderRadius: displayBlock.isVirus ? BLOCK_SIZE / 2 : 6, // Rounded corners
+                                            },
+                                            displayBlock.type === 'EMPTY' && {
+                                                borderWidth: 0,
+                                            }
+                                        ]}
+                                    >
+                                        {displayBlock.isVirus && <Text style={{ fontSize: BLOCK_SIZE * 0.6 }}>🦠</Text>}
+                                    </View>
+                                );
+                            })}
+                        </View>
+                    ))}
+                </View>
             </View>
 
             <View style={styles.controls}>
                 <TouchableOpacity style={styles.btn} onPress={controls.left}><Text style={styles.btnText}>⬅️</Text></TouchableOpacity>
                 <TouchableOpacity style={[styles.btn, styles.btnBig]} onPress={controls.rotate}><Text style={styles.btnText}>🔄</Text></TouchableOpacity>
-                <TouchableOpacity style={[styles.btn, styles.btnBig]} onPress={controls.down} onPressOut={() => setSpeed(INITIAL_SPEED)}><Text style={styles.btnText}>⬇️</Text></TouchableOpacity>
                 <TouchableOpacity style={styles.btn} onPress={controls.right}><Text style={styles.btnText}>➡️</Text></TouchableOpacity>
             </View>
         </View>
@@ -380,9 +381,13 @@ const styles = StyleSheet.create({
         fontSize: 20,
         fontWeight: 'bold',
     },
-    grid: {
-        borderWidth: 2,
+    gridContainer: {
+        borderWidth: 3,
         borderColor: '#fff',
+        borderRadius: 10,
+        overflow: 'hidden',
+    },
+    grid: {
         backgroundColor: 'rgba(0,0,0,0.5)',
     },
     row: {
@@ -394,17 +399,14 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-    virus: {
-        borderRadius: BLOCK_SIZE / 2, // Circle
-        transform: [{ scale: 0.8 }],
-    },
     controls: {
         flexDirection: 'row',
         marginTop: 20,
-        gap: 10,
+        gap: 20,
+        alignItems: 'center',
     },
     btn: {
-        backgroundColor: '#fff',
+        backgroundColor: 'rgba(255,255,255,0.8)',
         width: 60,
         height: 60,
         borderRadius: 30,
@@ -413,9 +415,9 @@ const styles = StyleSheet.create({
         elevation: 5,
     },
     btnBig: {
-        width: 70,
-        height: 70,
-        borderRadius: 35,
+        width: 80,
+        height: 80,
+        borderRadius: 40,
         backgroundColor: '#FFD700',
     },
     btnText: {
