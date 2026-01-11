@@ -33,9 +33,10 @@ type LeaderboardEntry = {
 };
 
 import MahjongGame from '@/components/MahjongGame';
+import PillsGame from '@/components/PillsGame';
 
 export default function GameScreen() {
-  const [activeTab, setActiveTab] = useState<'match3' | 'mahjong'>('match3');
+  const [activeTab, setActiveTab] = useState<'match3' | 'mahjong' | 'pills'>('match3');
   const [board, setBoard] = useState<Board>([]);
   const [score, setScore] = useState(0);
   const [difficulty, setDifficulty] = useState(1);
@@ -362,6 +363,9 @@ export default function GameScreen() {
     if (activeTab === 'mahjong') {
       return <MahjongGame />;
     }
+    if (activeTab === 'pills') {
+      return <PillsGame />;
+    }
 
     // Default Match-3 Game
     return (
@@ -402,9 +406,9 @@ export default function GameScreen() {
         <Text style={styles.menuIcon}>🀄</Text>
         <Text style={styles.menuText}>Mahjong</Text>
       </Pressable>
-      <Pressable onPress={loadLeaderboard} style={styles.menuItem}>
-        <Text style={styles.menuIcon}>🏆</Text>
-        <Text style={styles.menuText}>Leaderboard</Text>
+      <Pressable onPress={() => setActiveTab('pills')} style={[styles.menuItem, activeTab === 'pills' && styles.activeMenuItem]}>
+        <Text style={styles.menuIcon}>💊</Text>
+        <Text style={styles.menuText}>Pills</Text>
       </Pressable>
     </View>
   );
