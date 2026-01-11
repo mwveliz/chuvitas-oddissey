@@ -13,7 +13,7 @@ import { initDatabase, saveScore, getLeaderboard } from '@/utils/db';
 
 const BOARD_SIZE = 8;
 const CELL_SIZE = Math.floor(Dimensions.get('window').width / BOARD_SIZE);
-const GAME_PIECES = ['🍎', '🍇', '💎', '🍊', '🫐', '💍'];
+const GAME_PIECES = ['🐶', '🦴', '🐾', '🎾', '🐕', '🍖'];
 const SPECIAL_PIECES = {
   BOMB: '💣',
   RAINBOW: '🌈'

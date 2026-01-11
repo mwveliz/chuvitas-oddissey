@@ -13,7 +13,7 @@ const START_X = PADDING;
 const START_Y = 50;
 
 // Simple emoji set for tiles
-const TILE_TYPES = ['🀄', '🃏', '🎴', '🎭', '🎨', '🎪', '🎫', '🎬', '🎧', '🎤', '🎼', '🎹', '🥁', '🎷', '🎺', '🎸', '🎻', '🎲', '🎳', '🎮', '👾', '🎰'];
+const TILE_TYPES = ['🐶', '🐕', '🐩', '🦮', '🐕‍🦺', '🐺', '🐱', '🐈', '🐈‍⬛', '😸', '😻', '🦴', '🐾', '🎾', '🥣', '🍖', '🌭', '🏠', '🥇', '🧣', '🧶', '🐟'];
 
 type Tile = {
     id: string;
