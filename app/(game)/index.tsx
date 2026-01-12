@@ -418,7 +418,7 @@ export default function GameScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Chuvita's Odyssey</Text>
+      <Text style={styles.title}>Uchuva's Odyssey</Text>
       {activeTab === 'match3' && (
         <View style={styles.statsContainer}>
           <Text style={styles.score}>Score: {score}</Text>

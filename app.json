@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "Chuvita's Odyssey",
+    "name": "Uchuva's Odyssey",
     "slug": "chuvitas-odyssey",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "chuvitasodyssey",
@@ -24,7 +24,8 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#7B2CBF"
       },
-      "package": "com.chuvitasodyssey.game"
+      "package": "com.chuvitasodyssey.game",
+      "versionCode": 2
     },
     "web": {
       "bundler": "metro",

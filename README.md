@@ -1,4 +1,4 @@
-# Chuvita's Odyssey (Android)
+# Uchuva's Odyssey (Android)
 
 A mobile game built with React Native and Expo, optimized for Android.
 
