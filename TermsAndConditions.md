@@ -1,6 +1,6 @@
 **Terms & Conditions**  
 
-These terms and conditions apply to the Uchuva's Oddisey app (hereby referred to as "Application") for mobile devices that was created by Miguel Delgado Veliz (hereby referred to as "Service Provider") as an Open Source service.
+These terms and conditions apply to the Uchuva's odyssey app (hereby referred to as "Application") for mobile devices that was created by Miguel Delgado Veliz (hereby referred to as "Service Provider") as an Open Source service.
 
 Upon downloading or utilizing the Application, you are automatically agreeing to the following terms. It is strongly advised that you thoroughly read and understand these terms prior to using the Application.
 
