@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useGameSounds } from '../hooks/useGameSounds';
 import { View, Text, StyleSheet, Pressable, Dimensions, Alert } from 'react-native';
 import Animated, { useAnimatedStyle, withSpring } from 'react-native-reanimated';
 
@@ -13,7 +14,12 @@ const START_X = PADDING;
 const START_Y = 50;
 
 // Simple emoji set for tiles
-const TILE_TYPES = ['🐶', '🐕', '🐩', '🦮', '🐕‍🦺', '🐺', '🐱', '🐈', '🐈‍⬛', '😸', '😻', '🦴', '🐾', '🎾', '🥣', '🍖', '🌭', '🏠', '🥇', '🧣', '🧶', '🐟'];
+// Hard Mode: Similar looking dogs and cats to increase difficulty
+const TILE_TYPES = [
+    '🐶', '🐕', '🦮', '🐕‍🦺', '🐩', '🐺', '🦊', // Canines
+    '🐱', '🐈', '🐈‍⬛', '🐯', '🦁', '🐆',       // Felines
+    '🐾', '🦴', '🥩', '🍖', '🌭'               // Related items
+];
 
 type Tile = {
     id: string;
@@ -28,18 +34,34 @@ export default function MahjongGame() {
     const [tiles, setTiles] = useState<Tile[]>([]);
     const [selectedTileId, setSelectedTileId] = useState<string | null>(null);
     const [score, setScore] = useState(0);
+    const [level, setLevel] = useState(1);
+    const { playSound } = useGameSounds();
 
     useEffect(() => {
         startNewGame();
     }, []);
 
-    const startNewGame = () => {
-        // Level Design: 2 Layers
-        // Layer 0: 6x4 Grid
-        // Layer 1: 4x2 Grid on top (centered)
-
+    const startNewGame = (customLevel?: number) => {
+        const currentLevel = customLevel ?? level;
         const newTiles: Tile[] = [];
-        const pairsNeeded = (24 + 8) / 2; // (6*4 + 4*2) / 2 = 16 pairs
+        let pairsNeeded = 0;
+
+        // Level 1: 2 Layers (Simple) vs Level 2: Pyramid vs Level 3: Dense
+        if (currentLevel === 1) {
+            pairsNeeded = (24 + 8) / 2; // 16 pairs
+        } else if (currentLevel === 2) {
+            pairsNeeded = (36 + 12 + 4) / 2; // Pyramid 3 layers? Let's approximate
+            // Layer 0: 6x6 (36)
+            // Layer 1: 4x4 (16)
+            // Layer 2: 2x2 (4) 
+            // Total: 56 tiles -> 28 pairs
+            pairsNeeded = 28;
+        } else {
+            // Level 3+: Dense Grid (8x5?) with smaller tiles?
+            // Let's stick to same tile size but pack more layers or wider if space permits
+            // Let's do a "Complex" 3 layer structure
+            pairsNeeded = 36; // 72 tiles
+        }
 
         // Choose random types for pairs
         let availableTypes = [];
@@ -50,39 +72,85 @@ export default function MahjongGame() {
 
         // Shuffle types
         availableTypes.sort(() => Math.random() - 0.5);
-
         let typeIndex = 0;
 
-        // Generate Layer 0 (6x4)
-        for (let row = 0; row < 6; row++) {
-            for (let col = 0; col < 4; col++) {
-                newTiles.push({
-                    id: `l0-${row}-${col}`,
-                    type: availableTypes[typeIndex++],
-                    x: START_X + col * (TILE_WIDTH + 4),
-                    y: START_Y + row * (TILE_HEIGHT / 2) + row * 10, // Staggered slightly
-                    z: 0,
-                    isVisible: true
-                });
+        if (currentLevel === 1) {
+            // ... Existing Level 1 Logic ...
+            // Layer 0 (6x4)
+            for (let row = 0; row < 6; row++) {
+                for (let col = 0; col < 4; col++) {
+                    newTiles.push({
+                        id: `l0-${row}-${col}`,
+                        type: availableTypes[typeIndex++],
+                        x: START_X + col * (TILE_WIDTH + 4),
+                        y: START_Y + row * (TILE_HEIGHT / 2) + row * 10,
+                        z: 0,
+                        isVisible: true
+                    });
+                }
             }
-        }
+            // Layer 1 (4x2)
+            for (let row = 0; row < 4; row++) {
+                for (let col = 0; col < 2; col++) {
+                    newTiles.push({
+                        id: `l1-${row}-${col}`,
+                        type: availableTypes[typeIndex++],
+                        x: START_X + (col + 1) * (TILE_WIDTH + 4),
+                        y: START_Y + (row + 1) * (TILE_HEIGHT / 2) + (row + 1) * 10 - 10,
+                        z: 1,
+                        isVisible: true
+                    });
+                }
+            }
+        } else if (currentLevel === 2) {
+            // Level 2: Simple Pyramid Structure
+            // Base 6x6 might be too wide, let's keep width constrains (4 cols max fits comfortably?)
+            // Let's use 5 cols but shift X start
+            const L2_START_X = START_X - 20;
 
-        // Generate Layer 1 (4x2) - Centered on top
-        for (let row = 0; row < 4; row++) {
-            for (let col = 0; col < 2; col++) {
-                newTiles.push({
-                    id: `l1-${row}-${col}`,
-                    type: availableTypes[typeIndex++],
-                    x: START_X + (col + 1) * (TILE_WIDTH + 4), // Center horizontally
-                    y: START_Y + (row + 1) * (TILE_HEIGHT / 2) + (row + 1) * 10 - 10, // Offset vertically
-                    z: 1,
-                    isVisible: true
-                });
+            // Layer 0: 5x6 (30)
+            for (let row = 0; row < 6; row++) {
+                for (let col = 0; col < 5; col++) {
+                    if (typeIndex >= availableTypes.length) break;
+                    newTiles.push({ id: `l0-${row}-${col}`, type: availableTypes[typeIndex++], x: L2_START_X + col * (TILE_WIDTH + 2), y: START_Y + row * (TILE_HEIGHT / 1.5), z: 0, isVisible: true });
+                }
+            }
+            // Layer 1: 3x4 (12)
+            for (let row = 0; row < 4; row++) {
+                for (let col = 0; col < 3; col++) {
+                    if (typeIndex >= availableTypes.length) break;
+                    newTiles.push({ id: `l1-${row}-${col}`, type: availableTypes[typeIndex++], x: L2_START_X + (col + 1) * (TILE_WIDTH + 2), y: START_Y + (row + 1) * (TILE_HEIGHT / 1.5), z: 1, isVisible: true });
+                }
+            }
+            // Layer 2: 1x2 (2) or similar... filler
+            while (typeIndex < availableTypes.length) {
+                // Push remaining on top center
+                newTiles.push({ id: `l2-${typeIndex}`, type: availableTypes[typeIndex++], x: L2_START_X + 2 * (TILE_WIDTH + 2), y: START_Y + 2.5 * (TILE_HEIGHT / 1.5), z: 2, isVisible: true });
+            }
+
+        } else {
+            // Level 3: "Smaller Cards" -> We need to override TILE_WIDTH logic potentially or just scale transform?
+            // For simplicity, let's just make a very tall tower or dense single layer with overlaps
+            // Let's try 3 dense layers of 4x5
+            for (let z = 0; z < 3; z++) {
+                for (let row = 0; row < 6; row++) {
+                    for (let col = 0; col < 4; col++) {
+                        if (typeIndex >= availableTypes.length) break;
+                        newTiles.push({
+                            id: `l${z}-${row}-${col}`,
+                            type: availableTypes[typeIndex++],
+                            x: START_X + col * (TILE_WIDTH + 4) + (z * 10), // slight offset per layer
+                            y: START_Y + row * (TILE_HEIGHT / 2) + (z * 10),
+                            z: z,
+                            isVisible: true
+                        });
+                    }
+                }
             }
         }
 
         setTiles(newTiles);
-        setScore(0);
+        if (customLevel === 1) setScore(0); // Reset score only on full restart
         setSelectedTileId(null);
     };
 
@@ -149,9 +217,19 @@ export default function MahjongGame() {
                 setScore(prev => prev + 100);
                 setSelectedTileId(null);
 
+                playSound('MATCH');
+
                 // Check win
                 if (newTiles.every(t => !t.isVisible)) {
-                    Alert.alert("Victory!", "You cleared the board!", [{ text: "New Game", onPress: startNewGame }]);
+                    const nextLevel = level + 1;
+                    Alert.alert("Victory!", `Level ${level} Cleared!`, [
+                        {
+                            text: "Next Level", onPress: () => {
+                                setLevel(nextLevel);
+                                setTimeout(() => startNewGame(nextLevel), 100);
+                            }
+                        }
+                    ]);
                 }
             } else {
                 // Mismatch, select new one
@@ -163,8 +241,11 @@ export default function MahjongGame() {
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <Text style={styles.scoreText}>Score: {score}</Text>
-                <Pressable onPress={startNewGame} style={styles.resetButton}>
+                <View>
+                    <Text style={styles.scoreText}>Score: {score}</Text>
+                    <Text style={[styles.scoreText, { fontSize: 14 }]}>Level: {level}</Text>
+                </View>
+                <Pressable onPress={() => { setLevel(1); startNewGame(1); }} style={styles.resetButton}>
                     <Text style={styles.resetText}>Restart</Text>
                 </Pressable>
             </View>

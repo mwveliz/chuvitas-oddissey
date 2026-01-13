@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useGameSounds } from '../hooks/useGameSounds';
 import { View, Text, StyleSheet, Dimensions, Alert, TouchableOpacity } from 'react-native';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -69,6 +70,7 @@ const DOG_ART = [
 ];
 
 export default function PillsGame() {
+    const { playSound } = useGameSounds();
     const [grid, setGrid] = useState<Block[][]>([]);
     const [activePill, setActivePill] = useState<Pill | null>(null);
     const [nextPillColors, setNextPillColors] = useState<{ c1: BlockType, c2: BlockType } | null>(null);
@@ -109,11 +111,12 @@ export default function PillsGame() {
         return types[Math.floor(Math.random() * types.length)];
     };
 
-    const startNewGame = () => {
+    const startNewGame = (customLevel?: number) => {
+        const currentLevel = customLevel ?? level;
         const newGrid = createEmptyGrid();
 
         // Spawn Fleas (formerly Viruses)
-        const virusCount = (level * 4) + 4;
+        const virusCount = (currentLevel * 4) + 4;
         let placed = 0;
         while (placed < virusCount) {
             const r = Math.floor(Math.random() * (GRID_ROWS - 8)) + 8; // Bottom rows
@@ -286,6 +289,9 @@ export default function PillsGame() {
             // Remove duplicates
             const uniqueClear = toClear.filter((v, i, a) => a.findIndex(t => (t.row === v.row && t.col === v.col)) === i);
 
+            // Play Pop Sound
+            playSound('POP');
+
             const newGrid = [...currentGrid.map(row => [...row])];
             uniqueClear.forEach(p => {
                 newGrid[p.row][p.col] = { type: 'EMPTY', isVirus: false };
@@ -319,8 +325,39 @@ export default function PillsGame() {
             setGrid(newGrid);
             setTimeout(() => applyGravity(newGrid), 100);
         } else {
-            checkMatches(newGrid);
+            // Check for Win Condition (No Viruses Left)
+            const remainingViruses = newGrid.flat().filter(b => b.isVirus).length;
+            if (remainingViruses === 0) {
+                playSound('VICTORY');
+                Alert.alert("Level Cleared!", `Moving to Level ${level + 1}`, [{
+                    text: "Next Level",
+                    onPress: () => {
+                        setLevel(prev => prev + 1);
+                        // Brief delay to allow state update before restart, though strictly not needed if using functional setLevel in startNewGame if we refactored, 
+                        // but here we just depend on the effect or direct call.
+                        // Actually startNewGame uses 'level' state, so we need to wait or pass it.
+                        // Let's pass it to a helper or just rely on state. 
+                        // Better: setLevel then trigger effect? 
+                        // startNewGame reads 'level' from state closure. 
+                        // Let's modify startNewGame to accept level or read ref. 
+                        // Easiest: just call a "nextLevel" function.
+                        advanceLevel();
+                    }
+                }]);
+                setGameOver(true); // Pause game
+            } else {
+                checkMatches(newGrid);
+            }
         }
+    };
+
+    const advanceLevel = () => {
+        // Increment level is async, so we'll pass the new value directly to start
+        const nextLevel = level + 1;
+        setLevel(nextLevel);
+        // We need to call startNewGame with the NEW level. 
+        // Let's modify startNewGame to take an optional level argument.
+        setTimeout(() => startNewGame(nextLevel), 100);
     };
 
     const controls = {

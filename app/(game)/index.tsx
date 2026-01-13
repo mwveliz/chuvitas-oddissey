@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Dimensions, Modal, TextInput } from 'react-native';
+import { useCallback, useEffect, useState, useRef } from 'react';
+import { View, Text, StyleSheet, Pressable, Dimensions, Modal, TextInput, PanResponder, Alert } from 'react-native';
+import { useGameSounds } from '@/hooks/useGameSounds';
 import Animated, {
   useAnimatedStyle,
   withSpring,
@@ -13,7 +14,9 @@ import { initDatabase, saveScore, getLeaderboard } from '@/utils/db';
 
 const BOARD_SIZE = 8;
 const CELL_SIZE = Math.floor(Dimensions.get('window').width / BOARD_SIZE);
-const GAME_PIECES = ['🐶', '🦴', '🐾', '🎾', '🐕', '🍖'];
+// Full list of possible pieces - difficulty determines how many are used
+const ALL_PIECES = ['🐶', '🦴', '🐾', '🎾', '🐕', '🍖', '🧸', '🥣', '🧶', '🐈'];
+const INITIAL_PIECE_COUNT = 5;
 const SPECIAL_PIECES = {
   BOMB: '💣',
   RAINBOW: '🌈'
@@ -40,6 +43,7 @@ export default function GameScreen() {
   const [board, setBoard] = useState<Board>([]);
   const [score, setScore] = useState(0);
   const [difficulty, setDifficulty] = useState(1);
+  const { playSound } = useGameSounds();
   const [selectedPiece, setSelectedPiece] = useState<Position | null>(null);
   const [explosions, setExplosions] = useState<Position[]>([]);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
@@ -53,25 +57,53 @@ export default function GameScreen() {
   }, []);
 
   useEffect(() => {
-    const newDifficulty = Math.floor(score / 10000) + 1;
+    // Level up every 1000 points
+    // Difficulty logic:
+    // Level 1: 5 types
+    // Level 2: 6 types
+    // ...
+    // Level 5+: Max types?
+    const newDifficulty = Math.floor(score / 1000) + 1;
     if (newDifficulty !== difficulty) {
       setDifficulty(newDifficulty);
+      // Optional: Trigger a board reset or "Level Up" animation/modal?
+      // For now, let's keep playing but maybe new pieces won't spawn until refresh...
+      // Actually, standard Candy Crush style leveling often changes level without board clear, 
+      // but increasing piece types mid-game is weird.
+      // Let's prompt user to "Next Level" and reset board with new difficulty.
+      // Let's prompt user to "Next Level" and reset board with new difficulty.
+      playSound('VICTORY');
+      Alert.alert("Level Up!", `Welcome to Level ${newDifficulty}! Difficulty Increased.`, [
+        { text: "Continue", onPress: () => initializeBoard(newDifficulty) }
+      ]);
     }
   }, [score]);
 
-  const initializeBoard = () => {
+  const getPiecesForLevel = (level: number) => {
+    // Start with base, add 1 type per level, up to max
+    const count = Math.min(INITIAL_PIECE_COUNT + (level - 1), ALL_PIECES.length);
+    return ALL_PIECES.slice(0, count);
+  };
+
+  const initializeBoard = (level: number = 1) => {
+    const pieces = getPiecesForLevel(level);
     const newBoard: Board = [];
     for (let i = 0; i < BOARD_SIZE; i++) {
       newBoard[i] = [];
       for (let j = 0; j < BOARD_SIZE; j++) {
         newBoard[i][j] = {
-          type: GAME_PIECES[Math.floor(Math.random() * GAME_PIECES.length)]
+          type: pieces[Math.floor(Math.random() * pieces.length)]
         };
       }
     }
     setBoard(newBoard);
-    setScore(0);
-    setDifficulty(1);
+    // Don't reset score if leveling up, but if New Game then yes?
+    // Using this for both is tricky. Let's assume New Game is explicit.
+    // However, if called from Level Up alert, we pass level.
+    // If called from "New Game" button, we default to 1.
+    // But New Game button calls with no args -> level 1. Perfect.
+    if (level === 1) setScore(0);
+    setDifficulty(level);
   };
 
   const loadLeaderboard = async () => {
@@ -106,7 +138,8 @@ export default function GameScreen() {
     } else if (length >= 5) {
       return { type: SPECIAL_PIECES.RAINBOW, isSpecial: true };
     }
-    return { type: GAME_PIECES[Math.floor(Math.random() * GAME_PIECES.length)] };
+    const pieces = getPiecesForLevel(difficulty);
+    return { type: pieces[Math.floor(Math.random() * pieces.length)] };
   };
 
   const triggerExplosion = (positions: Position[]) => {
@@ -140,14 +173,15 @@ export default function GameScreen() {
           }
 
           triggerExplosion(positions);
-          setScore(prev => prev + (matchCount * 100));
+          setScore(prev => prev + (matchCount * 20));
 
           const specialPiece = createSpecialPiece(matchCount);
           newBoard[row][col] = specialPiece;
 
           for (let i = 1; i < matchCount; i++) {
+            const pieces = getPiecesForLevel(difficulty);
             newBoard[row][col + i] = {
-              type: GAME_PIECES[Math.floor(Math.random() * GAME_PIECES.length)]
+              type: pieces[Math.floor(Math.random() * pieces.length)]
             };
           }
 
@@ -177,14 +211,15 @@ export default function GameScreen() {
           }
 
           triggerExplosion(positions);
-          setScore(prev => prev + (matchCount * 100));
+          setScore(prev => prev + (matchCount * 20));
 
           const specialPiece = createSpecialPiece(matchCount);
           newBoard[row][col] = specialPiece;
 
           for (let i = 1; i < matchCount; i++) {
+            const pieces = getPiecesForLevel(difficulty);
             newBoard[row + i][col] = {
-              type: GAME_PIECES[Math.floor(Math.random() * GAME_PIECES.length)]
+              type: pieces[Math.floor(Math.random() * pieces.length)]
             };
           }
 
@@ -199,28 +234,52 @@ export default function GameScreen() {
     }
   }, [board]);
 
+  const attemptSwap = (pos1: Position, pos2: Position) => {
+    // Check if adjacent
+    const isAdjacent =
+      (Math.abs(pos1.row - pos2.row) === 1 && pos1.col === pos2.col) ||
+      (Math.abs(pos1.col - pos2.col) === 1 && pos2.row === pos1.row);
+
+    if (isAdjacent) {
+      const newBoard = [...board];
+      const temp = newBoard[pos1.row][pos1.col];
+      newBoard[pos1.row][pos1.col] = newBoard[pos2.row][pos2.col];
+      newBoard[pos2.row][pos2.col] = temp;
+
+      setBoard(newBoard);
+      setTimeout(() => checkMatches(), 300);
+      return true;
+    }
+    return false;
+  };
+
   const handlePiecePress = (row: number, col: number) => {
     if (!selectedPiece) {
       setSelectedPiece({ row, col });
       return;
     }
 
-    const isAdjacent =
-      (Math.abs(selectedPiece.row - row) === 1 && selectedPiece.col === col) ||
-      (Math.abs(selectedPiece.col - col) === 1 && selectedPiece.row === row);
+    const swapped = attemptSwap(selectedPiece, { row, col });
+    setSelectedPiece(null);
+    if (!swapped) {
+      // If clicked far away or same piece, select the new one (or deselect if same)
+      if (selectedPiece.row !== row || selectedPiece.col !== col) {
+        setSelectedPiece({ row, col });
+      }
+    }
+  };
 
-    if (isAdjacent) {
-      const newBoard = [...board];
-      const temp = newBoard[selectedPiece.row][selectedPiece.col];
-      newBoard[selectedPiece.row][selectedPiece.col] = newBoard[row][col];
-      newBoard[row][col] = temp;
+  const handleSwipe = (row: number, col: number, direction: 'LEFT' | 'RIGHT' | 'UP' | 'DOWN') => {
+    let targetRow = row;
+    let targetCol = col;
 
-      setBoard(newBoard);
-      setSelectedPiece(null);
+    if (direction === 'LEFT') targetCol--;
+    if (direction === 'RIGHT') targetCol++;
+    if (direction === 'UP') targetRow--;
+    if (direction === 'DOWN') targetRow++;
 
-      setTimeout(() => checkMatches(), 300);
-    } else {
-      setSelectedPiece({ row, col });
+    if (targetRow >= 0 && targetRow < BOARD_SIZE && targetCol >= 0 && targetCol < BOARD_SIZE) {
+      attemptSwap({ row, col }, { row: targetRow, col: targetCol });
     }
   };
 
@@ -269,34 +328,50 @@ export default function GameScreen() {
             withSpring(1)
           )
         },
-        {
-          rotate: withSequence(
-            withTiming('0deg'),
-            withDelay(
-              Math.random() * 1000,
-              withSequence(
-                withTiming('10deg', { duration: 200 }),
-                withTiming('-10deg', { duration: 200 }),
-                withTiming('0deg', { duration: 200 })
-              )
-            )
-          )
-        }
+        // ... (Rotation logic removed/simplified or kept if desired, keeping simple for now)
       ]
     }));
 
+    // PanResponder for Swipe
+    const panResponder = useRef(
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: (_, gestureState) => {
+          // Only capture if moved significantly
+          return Math.abs(gestureState.dx) > 10 || Math.abs(gestureState.dy) > 10;
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          const { dx, dy } = gestureState;
+          if (Math.abs(dx) > Math.abs(dy)) {
+            if (Math.abs(dx) > 20) { // Threshold
+              handleSwipe(row, col, dx > 0 ? 'RIGHT' : 'LEFT');
+            } else {
+              handlePiecePress(row, col); // Treat as tap
+            }
+          } else {
+            if (Math.abs(dy) > 20) {
+              handleSwipe(row, col, dy > 0 ? 'DOWN' : 'UP');
+            } else {
+              handlePiecePress(row, col); // Treat as tap
+            }
+          }
+        }
+      })
+    ).current;
+
     return (
-      <Pressable onPress={() => handlePiecePress(row, col)}>
+      <View {...panResponder.panHandlers}>
         <Animated.Text
           style={[
             styles.piece,
             animatedStyle,
-            piece.isSpecial && styles.specialPiece
+            piece.isSpecial && styles.specialPiece,
+            isSelected && { backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: 10 }
           ]}
         >
           {piece.type}
         </Animated.Text>
-      </Pressable>
+      </View>
     );
   };
 
